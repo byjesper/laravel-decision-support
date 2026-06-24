@@ -3,15 +3,18 @@
 declare(strict_types=1);
 
 return [
+
     /*
     |--------------------------------------------------------------------------
-    | Example option
+    | Run step budget
     |--------------------------------------------------------------------------
     |
-    | Replace this with the package's real configuration. The publish tag is
-    | "decision-support-config" (see the service provider).
+    | A safety rail for the resumable interpreter: the maximum number of node
+    | transitions a single run may take before it terminates with an `unknown`
+    | outcome instead of looping forever.
     |
     */
 
-    'enabled' => true,
+    'max_steps' => 200,
+
 ];
