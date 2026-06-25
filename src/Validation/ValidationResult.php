@@ -14,9 +14,12 @@ final readonly class ValidationResult
         return new self([]);
     }
 
-    public static function error(string $code, string $message, ?string $nodeKey = null): self
+    /**
+     * @param  array<string, string|int>  $params  values interpolated into `$message`, kept structured for translation
+     */
+    public static function error(string $code, string $message, ?string $nodeKey = null, array $params = []): self
     {
-        return new self([new ValidationError($code, $message, $nodeKey)]);
+        return new self([new ValidationError($code, $message, $nodeKey, $params)]);
     }
 
     public function passes(): bool

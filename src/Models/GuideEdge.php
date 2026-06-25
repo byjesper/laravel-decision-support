@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $from_node_id
  * @property int $to_node_id
  * @property string $from_port
+ * @property string|null $label
+ * @property array<string, string>|null $label_i18n
  * @property array<string, mixed>|null $condition
  */
 final class GuideEdge extends Model
@@ -24,7 +26,7 @@ final class GuideEdge extends Model
     #[\Override]
     protected function casts(): array
     {
-        return ['condition' => 'array'];
+        return ['condition' => 'array', 'label_i18n' => 'array'];
     }
 
     /** @return BelongsTo<GuideVersion, $this> */

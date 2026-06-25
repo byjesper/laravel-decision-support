@@ -73,6 +73,7 @@ final readonly class PublishValidator
                     'graph.unknown_node_type',
                     "Node '{$node->key}' has an unregistered type '{$node->type}'.",
                     $node->key,
+                    ['key' => $node->key, 'type' => $node->type],
                 ));
 
                 continue;
@@ -90,11 +91,11 @@ final readonly class PublishValidator
 
         foreach ($definition->edges as $edge) {
             if ($definition->node($edge->from) === null) {
-                $result = $result->merge(ValidationResult::error('graph.dangling_edge', "Edge starts at unknown node '{$edge->from}'.", $edge->from));
+                $result = $result->merge(ValidationResult::error('graph.dangling_edge', "Edge starts at unknown node '{$edge->from}'.", $edge->from, ['node' => $edge->from]));
             }
 
             if ($definition->node($edge->to) === null) {
-                $result = $result->merge(ValidationResult::error('graph.dangling_edge', "Edge points to unknown node '{$edge->to}'.", $edge->to));
+                $result = $result->merge(ValidationResult::error('graph.dangling_edge', "Edge points to unknown node '{$edge->to}'.", $edge->to, ['node' => $edge->to]));
             }
         }
 
@@ -121,6 +122,7 @@ final readonly class PublishValidator
                         'graph.uncovered_port',
                         "Node '{$node->key}' has no outgoing edge for port '{$port}'.",
                         $node->key,
+                        ['key' => $node->key, 'port' => $port],
                     ));
                 }
             }
@@ -143,6 +145,7 @@ final readonly class PublishValidator
                     'graph.non_outcome_leaf',
                     "Node '{$node->key}' has no outgoing edges but is not an outcome.",
                     $node->key,
+                    ['key' => $node->key],
                 ));
             }
         }
@@ -165,6 +168,7 @@ final readonly class PublishValidator
                     'graph.orphan_node',
                     "Node '{$node->key}' is unreachable from the entry node.",
                     $node->key,
+                    ['key' => $node->key],
                 ));
             }
         }
@@ -205,7 +209,7 @@ final readonly class PublishValidator
         }
 
         if ($found !== null) {
-            return ValidationResult::error('graph.cycle', "The guide contains a cycle through '{$found}'.", $found);
+            return ValidationResult::error('graph.cycle', "The guide contains a cycle through '{$found}'.", $found, ['key' => $found]);
         }
 
         return ValidationResult::valid();
@@ -238,6 +242,7 @@ final readonly class PublishValidator
                     'fact.unknown_fact',
                     "Condition on edge '{$edge->from}' references unknown fact '{$condition->fact}'.",
                     $edge->from,
+                    ['edge' => $edge->from, 'fact' => $condition->fact],
                 );
             }
         }
@@ -248,7 +253,7 @@ final readonly class PublishValidator
     private function lintExpression(EdgeDefinition $edge, Condition $condition, FactVocabulary $vocabulary): ValidationResult
     {
         if ($condition->expression === null || $condition->expression === '') {
-            return ValidationResult::error('fact.empty_expression', "Expression condition on edge '{$edge->from}' is empty.", $edge->from);
+            return ValidationResult::error('fact.empty_expression', "Expression condition on edge '{$edge->from}' is empty.", $edge->from, ['edge' => $edge->from]);
         }
 
         try {
@@ -258,6 +263,7 @@ final readonly class PublishValidator
                 'fact.invalid_expression',
                 "Expression on edge '{$edge->from}' is invalid: {$e->getMessage()}",
                 $edge->from,
+                ['edge' => $edge->from, 'error' => $e->getMessage()],
             );
         }
 

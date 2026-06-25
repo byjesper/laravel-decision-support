@@ -302,6 +302,27 @@ use ByJesper\DecisionSupport\Mermaid\MermaidRenderer;
 $mermaid = app(MermaidRenderer::class)->render($definition, $state);
 ```
 
+Node text is localized through the same locale chain as the runner
+(locale → fallback → base). A run state carries its own locale, so a highlighted
+diagram localizes automatically; for a diagram with no run state (e.g. a
+pre-start preview) pass the locale explicitly:
+
+```php
+$mermaid = app(MermaidRenderer::class)->render($definition, null, 'da', 'en');
+```
+
+Each node resolves its display text from an explicit `label` (with an optional
+`label_i18n` map) first, then the type's content field (`prompt`/`prompt_i18n`
+for a question, `verdict`/`verdict_i18n` for an outcome, the `fact` name for a
+fact/decision), then the node key. `GuideBuilder::fact()`/`decision()` take an
+optional `$label` and `$labelI18n` so authored graphs show friendly labels
+instead of raw keys.
+
+**Edge labels** follow the same rule: by default an edge shows its derived
+condition/port text (`tenure >= 5`, `else`, a boolean port…), but giving the edge
+a `label` (and optional `labelI18n`) overrides that with humanised, localized
+text. `GuideBuilder::edge()` accepts `$label`/`$labelI18n`.
+
 ## Extending the engine
 
 Register everything on the `DecisionSupportManager` (typically in `boot()`):

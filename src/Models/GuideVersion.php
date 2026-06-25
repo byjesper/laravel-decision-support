@@ -94,7 +94,7 @@ final class GuideVersion extends Model
             $from = $keyById[$edge->from_node_id] ?? '';
             $to = $keyById[$edge->to_node_id] ?? '';
             $incoming[$to] = true;
-            $edgeDefinitions[] = new EdgeDefinition($from, $edge->from_port, $to, $edge->conditionObject());
+            $edgeDefinitions[] = new EdgeDefinition($from, $edge->from_port, $to, $edge->conditionObject(), $edge->label, $edge->label_i18n ?? []);
         }
 
         $nodeDefinitions = array_map(static fn (GuideNode $n): NodeDefinition => $n->toDefinition(), $nodes);
