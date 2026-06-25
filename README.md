@@ -305,6 +305,18 @@ to install it. It is loaded **on-demand** — only when the agent is actually
 authoring guides, fact providers, node types, or conditions — so it adds no
 upfront context cost to apps that aren't touching this engine.
 
+> **Boost only discovers skills from _direct_ dependencies.** It reads
+> `require`/`require-dev` in your application's root `composer.json` and does not
+> walk transitive dependencies. If you pull this engine in only transitively (for
+> example via `byjesper/laravel-decision-support-filament`), Boost never sees its
+> skill. Since you use the engine's API (`FactProvider`, `GuideBuilder`,
+> `Condition`, …) directly anyway, require it directly to get the skill:
+>
+> ```bash
+> composer require byjesper/laravel-decision-support
+> php artisan boost:update --discover   # select the engine to publish its skill
+> ```
+
 ## Testing
 
 ```bash
