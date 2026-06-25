@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $definition
  * @property Carbon|null $published_at
  * @property int|null $published_by
+ * @property array<string, mixed>|null $extra_attributes
  * @property-read Guide $guide
  * @property-read Collection<int, GuideNode> $nodes
  * @property-read Collection<int, GuideEdge> $edges
@@ -38,6 +39,7 @@ final class GuideVersion extends Model
             'status' => VersionStatus::class,
             'definition' => 'array',
             'published_at' => 'datetime',
+            'extra_attributes' => 'array',
         ];
     }
 
