@@ -140,7 +140,8 @@ $state = $runner->start($definition, [], $locale, $fallbackLocale);
 ```
 
 No locale ⇒ base strings (backward compatible). `GuideBuilder::question()` /
-`->outcome()` take an `$i18n` array for tests.
+`->outcome()` take an `$i18n` array for tests; `->fact()` / `->decision()` take an
+optional `$label` + `$labelI18n` so diagram nodes show a label instead of the key.
 
 ## 4. Validate and publish a draft
 
@@ -150,7 +151,9 @@ then freezes the draft rows into the immutable snapshot the runtime reads.
 ```php
 $result = app(\ByJesper\DecisionSupport\Publishing\GuidePublisher::class)->publish($version);
 if ($result->fails()) {
-    // surface $result->errors (code, message, nodeKey) inline — nothing was published
+    // surface $result->errors inline — nothing was published. Each ValidationError
+    // carries code, message, nodeKey, and params (the interpolated values, kept
+    // structured) so a UI can re-render the message by code in another language.
 }
 ```
 
@@ -197,6 +200,13 @@ Available assertions: `assertReachesOutcome`, `assertReachesUnknown`,
 ```php
 $mermaid = app(\ByJesper\DecisionSupport\Mermaid\MermaidRenderer::class)->render($definition, $state);
 ```
+
+Node text localizes via the locale chain (locale → fallback → base). A run state
+carries its locale (so a highlighted diagram localizes automatically); for a
+diagram without one, pass it explicitly: `->render($definition, null, $locale, $fallback)`.
+Resolution per node: `label`/`label_i18n` → type content (`prompt`/`verdict`/
+`fact`, with `*_i18n`) → key. **Edges** resolve `label`/`labelI18n` first, else the
+derived condition/port text; `GuideBuilder::edge()` takes `$label`/`$labelI18n`.
 
 ## Conventions
 

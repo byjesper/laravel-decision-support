@@ -13,6 +13,7 @@ use ByJesper\DecisionSupport\NodeTypes\DecisionNode;
 use ByJesper\DecisionSupport\NodeTypes\FactNode;
 use ByJesper\DecisionSupport\NodeTypes\OutcomeNode;
 use ByJesper\DecisionSupport\NodeTypes\QuestionNode;
+use ByJesper\DecisionSupport\Runtime\LocaleResolver;
 use ByJesper\DecisionSupport\Runtime\RunState;
 
 /**
@@ -20,19 +21,31 @@ use ByJesper\DecisionSupport\Runtime\RunState;
  * for both the editor preview and the runner diagram. Framework-free: a pure
  * {@see GuideDefinition} (plus an optional {@see RunState}) in, a string out.
  * Passing a run state highlights the reached path.
+ *
+ * Node text is resolved through the same locale chain as the runner (locale →
+ * fallback → base), so the diagram reads in the run's language. The locale can
+ * be passed explicitly (for the pre-start diagram, which has no run state) or is
+ * derived from the highlighted run state when omitted. With no locale at all it
+ * renders the base strings — the pre-i18n behaviour.
  */
 final class MermaidRenderer
 {
-    public function render(GuideDefinition $definition, ?RunState $highlight = null): string
-    {
+    public function render(
+        GuideDefinition $definition,
+        ?RunState $highlight = null,
+        ?string $locale = null,
+        ?string $fallbackLocale = null,
+    ): string {
+        $resolver = $this->resolver($highlight, $locale, $fallbackLocale);
+
         $lines = ['flowchart TD'];
 
         foreach ($definition->nodes as $node) {
-            $lines[] = '    '.$this->nodeLine($node);
+            $lines[] = '    '.$this->nodeLine($node, $resolver);
         }
 
         foreach ($definition->edges as $edge) {
-            $lines[] = '    '.$this->edgeLine($edge);
+            $lines[] = '    '.$this->edgeLine($edge, $resolver);
         }
 
         foreach ($this->highlightLines($highlight) as $line) {
@@ -42,10 +55,23 @@ final class MermaidRenderer
         return implode("\n", $lines)."\n";
     }
 
-    private function nodeLine(NodeDefinition $node): string
+    /**
+     * An explicit locale wins; otherwise fall back to the highlighted run's
+     * locale chain so an active run localizes without the caller threading it.
+     */
+    private function resolver(?RunState $highlight, ?string $locale, ?string $fallbackLocale): LocaleResolver
+    {
+        if ($locale === null && $fallbackLocale === null && $highlight !== null) {
+            return new LocaleResolver($highlight->context->locale, $highlight->context->fallbackLocale);
+        }
+
+        return new LocaleResolver($locale, $fallbackLocale);
+    }
+
+    private function nodeLine(NodeDefinition $node, LocaleResolver $resolver): string
     {
         $id = $this->id($node->key);
-        $text = $this->escape($this->text($node));
+        $text = $this->escape($this->text($node, $resolver));
 
         return match ($node->type) {
             QuestionNode::KEY, DecisionNode::KEY => "{$id}{\"{$text}\"}",
@@ -55,11 +81,11 @@ final class MermaidRenderer
         };
     }
 
-    private function edgeLine(EdgeDefinition $edge): string
+    private function edgeLine(EdgeDefinition $edge, LocaleResolver $resolver): string
     {
         $from = $this->id($edge->from);
         $to = $this->id($edge->to);
-        $label = $this->edgeLabel($edge);
+        $label = $this->edgeLabel($edge, $resolver);
 
         if ($label === '') {
             return "{$from} --> {$to}";
@@ -68,8 +94,15 @@ final class MermaidRenderer
         return "{$from} -->|\"{$this->escape($label)}\"| {$to}";
     }
 
-    private function edgeLabel(EdgeDefinition $edge): string
+    private function edgeLabel(EdgeDefinition $edge, LocaleResolver $resolver): string
     {
+        // An authored label (with its own `label_i18n`) overrides the derived one,
+        // resolved through the same locale chain as node text.
+        $custom = $resolver->localizedNullableString($edge->labelI18n, $edge->label);
+        if (is_string($custom) && $custom !== '') {
+            return $custom;
+        }
+
         if ($edge->fromPort !== 'out' && $edge->fromPort !== '') {
             return $edge->fromPort;
         }
@@ -131,20 +164,39 @@ final class MermaidRenderer
         ];
     }
 
-    private function text(NodeDefinition $node): string
+    private function text(NodeDefinition $node, LocaleResolver $resolver): string
     {
-        if (is_string($node->label) && $node->label !== '') {
-            return $node->label;
+        // An explicit label (with its own `label_i18n`) wins for every node type.
+        $label = $resolver->localizedNullableString($this->i18n($node, 'label_i18n'), $node->label);
+        if (is_string($label) && $label !== '') {
+            return $label;
         }
 
+        // Otherwise fall back to the type's display field, resolved through the
+        // same locale chain the runner uses (so fact/decision still show the key).
         $candidate = match ($node->type) {
-            QuestionNode::KEY => $node->config('prompt'),
-            OutcomeNode::KEY => $node->config('verdict'),
-            FactNode::KEY, DecisionNode::KEY => $node->config('fact'),
+            QuestionNode::KEY => $resolver->localizedNullableString($this->i18n($node, 'prompt_i18n'), $this->stringConfig($node, 'prompt')),
+            OutcomeNode::KEY => $resolver->localizedNullableString($this->i18n($node, 'verdict_i18n'), $this->stringConfig($node, 'verdict')),
+            FactNode::KEY, DecisionNode::KEY => $this->stringConfig($node, 'fact'),
             default => null,
         };
 
         return is_string($candidate) && $candidate !== '' ? $candidate : $node->key;
+    }
+
+    /** @return array<string, mixed> */
+    private function i18n(NodeDefinition $node, string $key): array
+    {
+        $map = $node->config($key);
+
+        return is_array($map) ? $map : [];
+    }
+
+    private function stringConfig(NodeDefinition $node, string $key): ?string
+    {
+        $value = $node->config($key);
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     private function id(string $key): string

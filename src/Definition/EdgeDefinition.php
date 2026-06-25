@@ -13,11 +13,16 @@ use ByJesper\DecisionSupport\Enums\ConditionType;
  */
 final readonly class EdgeDefinition
 {
+    /**
+     * @param  array<string, string>  $labelI18n  per-locale display labels for the diagram
+     */
     public function __construct(
         public string $from,
         public string $fromPort,
         public string $to,
         public ?Condition $condition = null,
+        public ?string $label = null,
+        public array $labelI18n = [],
     ) {}
 
     public function isDefault(): bool
@@ -34,6 +39,8 @@ final readonly class EdgeDefinition
             'fromPort' => $this->fromPort,
             'to' => $this->to,
             'condition' => $this->condition?->toArray(),
+            'label' => $this->label,
+            'labelI18n' => $this->labelI18n,
         ];
     }
 
@@ -42,11 +49,18 @@ final readonly class EdgeDefinition
     {
         $condition = is_array($data['condition'] ?? null) ? Condition::fromArray($data['condition']) : null;
 
+        /** @var array<string, string> $labelI18n */
+        $labelI18n = is_array($data['labelI18n'] ?? null)
+            ? array_filter($data['labelI18n'], is_string(...))
+            : [];
+
         return new self(
             from: is_string($data['from'] ?? null) ? $data['from'] : '',
             fromPort: is_string($data['fromPort'] ?? null) ? $data['fromPort'] : 'out',
             to: is_string($data['to'] ?? null) ? $data['to'] : '',
             condition: $condition,
+            label: is_string($data['label'] ?? null) ? $data['label'] : null,
+            labelI18n: $labelI18n,
         );
     }
 }

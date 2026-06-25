@@ -80,6 +80,21 @@ it('rejects an uncovered port', function (): void {
     expect($result->hasCode('graph.uncovered_port'))->toBeTrue();
 });
 
+it('exposes the interpolated values as structured params for translation', function (): void {
+    $guide = GuideBuilder::make('partial')
+        ->question('q1', 'Employed?', 'employed', 'boolean')
+        ->outcome('yes', 'Yes')
+        ->edge('q1', 'yes', 'true')
+        ->build();
+
+    $result = makeValidator()->validate($guide, FakeFactProvider::make()->vocabulary());
+
+    $error = collect($result->errors)->firstWhere('code', 'graph.uncovered_port');
+
+    expect($error)->not->toBeNull()
+        ->and($error?->params)->toBe(['key' => 'q1', 'port' => 'false']);
+});
+
 it('rejects a cycle', function (): void {
     $guide = GuideBuilder::make('loop')
         ->decision('a')

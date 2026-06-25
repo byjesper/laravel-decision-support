@@ -76,14 +76,32 @@ final class GuideBuilder
         ]));
     }
 
-    public function fact(string $key, string $fact): self
+    /**
+     * @param  array<string, string>  $labelI18n  per-locale display labels (written to `label_i18n`), surfaced in the Mermaid diagram
+     */
+    public function fact(string $key, string $fact, ?string $label = null, array $labelI18n = []): self
     {
-        return $this->node(new NodeDefinition($key, FactNode::KEY, ['fact' => $fact]));
+        return $this->node(new NodeDefinition($key, FactNode::KEY, $this->withLabelI18n(['fact' => $fact], $labelI18n), $label));
     }
 
-    public function decision(string $key, ?string $fact = null): self
+    /**
+     * @param  array<string, string>  $labelI18n  per-locale display labels (written to `label_i18n`), surfaced in the Mermaid diagram
+     */
+    public function decision(string $key, ?string $fact = null, ?string $label = null, array $labelI18n = []): self
     {
-        return $this->node(new NodeDefinition($key, DecisionNode::KEY, $fact === null ? [] : ['fact' => $fact]));
+        $config = $fact === null ? [] : ['fact' => $fact];
+
+        return $this->node(new NodeDefinition($key, DecisionNode::KEY, $this->withLabelI18n($config, $labelI18n), $label));
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @param  array<string, string>  $labelI18n
+     * @return array<string, mixed>
+     */
+    private function withLabelI18n(array $config, array $labelI18n): array
+    {
+        return $labelI18n === [] ? $config : [...$config, 'label_i18n' => $labelI18n];
     }
 
     /**
@@ -108,9 +126,12 @@ final class GuideBuilder
         return $this;
     }
 
-    public function edge(string $from, string $to, string $port = 'out', ?Condition $condition = null): self
+    /**
+     * @param  array<string, string>  $labelI18n  per-locale edge labels for the diagram (override the derived condition/port label)
+     */
+    public function edge(string $from, string $to, string $port = 'out', ?Condition $condition = null, ?string $label = null, array $labelI18n = []): self
     {
-        $this->edges[] = new EdgeDefinition($from, $port, $to, $condition);
+        $this->edges[] = new EdgeDefinition($from, $port, $to, $condition, $label, $labelI18n);
 
         return $this;
     }

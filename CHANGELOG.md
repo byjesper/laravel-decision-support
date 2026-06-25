@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The **Mermaid diagram now renders node text in the run's language.**
+  `MermaidRenderer::render()` resolves each node's display text through the same
+  locale chain as the runner (locale → fallback → base): an explicit `label`
+  (with optional `label_i18n`) wins for every node type, otherwise a question
+  falls back to its `prompt`/`prompt_i18n`, an outcome to its `verdict`/
+  `verdict_i18n`, and a fact/decision to its `fact` name, then the key. The
+  locale can be passed explicitly via the new optional `$locale`/`$fallbackLocale`
+  parameters (for the pre-start diagram, which has no run state) or is derived
+  from the highlighted `RunState` when omitted.
+- `GuideBuilder::fact()` and `decision()` accept an optional `$label` and
+  `$labelI18n` map, so authored fact/decision nodes can show a friendly,
+  localized label in the diagram instead of their raw key.
+- **Custom / localized edge labels.** `EdgeDefinition` gains an optional `label`
+  and `labelI18n` map; when set, the diagram shows that (locale-resolved) text on
+  the branch instead of the derived condition/port text (e.g. a humanised
+  "Long tenure" rather than `tenure >= 5`). Persisted via new nullable
+  `label`/`label_i18n` columns on `guide_edges` (migration included) and exposed
+  on `GuideBuilder::edge()`.
+- **Structured params on `ValidationError`** (`$params`), exposing the values
+  interpolated into each error `message` (node key, port, edge, fact, …) so a
+  consumer can re-render the issue in another language by `code` + params. The
+  English `message` is unchanged. Resolves #10.
+
+### Notes
+
+- Backward compatible: with no locale the renderer emits the base strings (the
+  previous behaviour); nodes/edges without a `label`/`label_i18n` render exactly
+  as before; and `ValidationError::$params` defaults to an empty array so existing
+  consumers are unaffected.
+
 ## [0.2.0] - 2026-06-25
 
 ### Added

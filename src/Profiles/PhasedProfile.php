@@ -54,6 +54,7 @@ final class PhasedProfile implements GuideProfile
                     'profile.phase_order',
                     "Edge from '{$edge->from}' to '{$edge->to}' moves backwards across phases.",
                     $edge->from,
+                    ['from' => $edge->from, 'to' => $edge->to],
                 ));
             }
         }
