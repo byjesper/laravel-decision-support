@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Multi-language guide **content**. Outcome `verdict`/`text`/`warnings`, question
+  `prompt`, and select-option `label`s accept optional `*_i18n` sibling maps keyed
+  by locale (`verdict_i18n`, `text_i18n`, `warnings_i18n`, `prompt_i18n`, per-option
+  `label_i18n`). `GuideRunner::start()` takes an optional `$locale` and
+  `$fallbackLocale`, carried on `GuideContext` (serialized, so it survives
+  suspend/resume); a new `LocaleResolver` resolves `locale → fallback → base`.
+  `EvaluationContext` exposes `locale()`, `fallbackLocale()`, and `localeResolver()`;
+  `GuideBuilder::question()`/`outcome()` take an `$i18n` array. No locale ⇒ base
+  strings, fully backward compatible.
 - Optional `help` text on each node type's `configSchema()` field, rendered as
   hint text by the Filament editor. Additive — existing readers ignore it and the
   engine does not interpret the schema.

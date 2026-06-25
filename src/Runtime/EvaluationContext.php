@@ -31,6 +31,22 @@ final readonly class EvaluationContext
         return $this->state->context;
     }
 
+    public function locale(): ?string
+    {
+        return $this->state->context->locale;
+    }
+
+    public function fallbackLocale(): ?string
+    {
+        return $this->state->context->fallbackLocale;
+    }
+
+    /** Resolves `*_i18n` content through the run's locale chain (locale → fallback → base). */
+    public function localeResolver(): LocaleResolver
+    {
+        return new LocaleResolver($this->locale(), $this->fallbackLocale());
+    }
+
     public function hasInput(): bool
     {
         return $this->input !== null;
