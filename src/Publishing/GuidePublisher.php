@@ -17,7 +17,8 @@ use Illuminate\Support\Carbon;
 /**
  * Runs the publish pipeline for a draft version. On success it freezes the draft
  * rows into the immutable `definition` snapshot the runtime reads, marks the
- * version published, and points the guide at it. Validation failures are
+ * version published, points the guide at it, and seeds the guide's
+ * `extra_attributes` from the newly-active version. Validation failures are
  * returned, never thrown, so the editor can surface them inline.
  */
 final readonly class GuidePublisher
@@ -56,6 +57,11 @@ final readonly class GuidePublisher
 
         $guide = $version->guide;
         $guide->active_version_id = $version->id;
+        // Seed the guide's authoritative copy of `extra_attributes` from the version that
+        // is becoming active, so a host policy can gate on `$guide->extra_attributes`
+        // without joining to a version. Admins may still edit the guide copy directly
+        // between publishes; that edit governs access immediately.
+        $guide->extra_attributes = $version->extra_attributes;
         $guide->save();
 
         $this->events?->dispatch(new GuidePublished($definition->guideKey, $definition->version));

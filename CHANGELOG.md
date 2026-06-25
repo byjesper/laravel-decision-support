@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `extra_attributes` — a nullable JSON column (cast to `array`) on both `guides`
+  and `guide_versions` for arbitrary consumer metadata (e.g.
+  `['permissions' => [...]]` for host-side gating). Added via a new additive
+  migration so existing installs upgrade without touching the published create
+  migration.
+
+### Changed
+
+- `GuidePublisher::publish()` now seeds the guide's `extra_attributes` from the
+  version that becomes active, so a host policy can gate on
+  `$guide->extra_attributes` without joining to a version. The engine stores and
+  copies these attributes but enforces nothing.
+
 ## [0.1.0] - 2026-06-24
 
 ### Added

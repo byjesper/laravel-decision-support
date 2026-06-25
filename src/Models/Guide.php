@@ -15,10 +15,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $description
  * @property string $profile
  * @property int|null $active_version_id
+ * @property array<string, mixed>|null $extra_attributes
  */
 final class Guide extends Model
 {
     protected $guarded = [];
+
+    /** @return array<string, string> */
+    #[\Override]
+    protected function casts(): array
+    {
+        return [
+            'extra_attributes' => 'array',
+        ];
+    }
 
     /** @return HasMany<GuideVersion, $this> */
     public function versions(): HasMany

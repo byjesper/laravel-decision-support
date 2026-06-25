@@ -202,6 +202,35 @@ if ($result->fails()) {
 $definition = $version->fresh()->toDefinition();   // the published snapshot
 ```
 
+### Extra attributes (consumer metadata)
+
+Both `Guide` and `GuideVersion` carry a nullable `extra_attributes` JSON column
+(cast to `array`) for arbitrary consumer-defined metadata — the headline use case
+is the permissions required to see or run a guide:
+
+```php
+$guide->extra_attributes = ['permissions' => ['view-guide']];
+$guide->save();
+```
+
+The **guide-level** copy is the source of truth. The **version-level** copy is an
+editable working copy that travels with a version; **publishing seeds the guide's
+copy from the version that becomes active** (alongside `active_version_id`). An
+admin may also edit the guide copy directly between publishes, and that edit takes
+effect immediately.
+
+The engine stores and copies these attributes but enforces nothing — gating is the
+host's job. Read them from your `Guide` policy:
+
+```php
+public function view(User $user, Guide $guide): bool
+{
+    $required = $guide->extra_attributes['permissions'] ?? [];
+
+    return collect($required)->every(fn (string $p): bool => $user->can($p));
+}
+```
+
 ### Publish validation
 
 `PublishValidator` rejects a draft *loudly* rather than letting a broken guide

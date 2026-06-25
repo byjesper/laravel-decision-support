@@ -138,6 +138,18 @@ if ($result->fails()) {
 }
 ```
 
+Publishing also points `guides.active_version_id` at the version and **seeds the
+guide's `extra_attributes` from it** (see below).
+
+### Extra attributes (consumer metadata)
+
+`Guide` and `GuideVersion` both have a nullable `extra_attributes` JSON column
+(cast to `array`) for arbitrary host metadata — typically `['permissions' => [...]]`
+for gating. The **guide** copy is authoritative; the **version** copy is an editable
+working copy that publishing copies up onto the guide. The engine stores/copies but
+never enforces — gate in the host `Guide` policy by reading
+`$guide->extra_attributes['permissions']`.
+
 ## 5. Test guides
 
 Pull in `InteractsWithGuides` and `FakeFactProvider` for fast, DB-free tests.
