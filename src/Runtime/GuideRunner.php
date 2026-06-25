@@ -35,10 +35,14 @@ final readonly class GuideRunner
         private int $maxSteps = 200,
     ) {}
 
-    /** @param array<string, mixed> $answers */
-    public function start(GuideDefinition $definition, array $answers = []): RunState
+    /**
+     * @param  array<string, mixed>  $answers
+     * @param  ?string  $locale  active locale for content resolution; null ⇒ base strings
+     * @param  ?string  $fallbackLocale  tried before the base string when $locale has no translation
+     */
+    public function start(GuideDefinition $definition, array $answers = [], ?string $locale = null, ?string $fallbackLocale = null): RunState
     {
-        $context = new GuideContext(answers: $answers, facts: $answers);
+        $context = new GuideContext(answers: $answers, facts: $answers, locale: $locale, fallbackLocale: $fallbackLocale);
 
         $state = new RunState(
             guideKey: $definition->guideKey,

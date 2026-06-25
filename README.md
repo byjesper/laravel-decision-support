@@ -159,6 +159,37 @@ $state = RunState::fromArray(session('run'));
 $state = $runner->advance($definition, $state, $userInput);
 ```
 
+### Multi-language content
+
+Guide content — an outcome's `verdict`/`text`/`warnings`, a question's `prompt`,
+and select-option `label`s — can be authored in several languages. Keep the plain
+string field as the **source/default** language and add an optional sibling
+`*_i18n` map keyed by locale:
+
+```php
+GuideBuilder::make('eligibility')
+    ->question('q', 'Are you employed?', 'employed', 'boolean', [], [
+        'prompt_i18n' => ['da' => 'Er du ansat?'],
+    ])
+    ->outcome('yes', 'Eligible', 'You qualify.', [], [
+        'verdict_i18n' => ['da' => 'Berettiget'],
+        'text_i18n'    => ['da' => 'Du kvalificerer.'],
+    ]);
+// select options take a per-option 'label_i18n' => ['da' => '…']
+```
+
+The engine is framework-agnostic, so you **tell** it the locale rather than it
+reading `app()->getLocale()`. Pass an active locale (and an optional fallback) to
+`start()`; it is carried on the run and survives serialization:
+
+```php
+$state = $runner->start($definition, [], 'da');          // da → base
+$state = $runner->start($definition, [], 'de', 'da');    // de → da → base
+```
+
+Resolution is `*_i18n[$locale] ?? *_i18n[$fallbackLocale] ?? <base string>`. With
+no locale (the default) the base strings are used — fully backward compatible.
+
 ## Conditions
 
 Edges are guarded by conditions. The default is **structured**; expressions are

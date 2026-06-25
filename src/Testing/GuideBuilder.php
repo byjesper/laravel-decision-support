@@ -62,15 +62,17 @@ final class GuideBuilder
 
     /**
      * @param  'boolean'|'select'|'date'|'text'|'number'  $inputType
-     * @param  list<array{value: string, label: string}>  $options
+     * @param  list<array{value: string, label: string, label_i18n?: array<string, string>}>  $options
+     * @param  array<string, mixed>  $i18n  e.g. `['prompt_i18n' => ['da' => '…']]`, merged into config
      */
-    public function question(string $key, string $prompt, string $fact, string $inputType = 'boolean', array $options = []): self
+    public function question(string $key, string $prompt, string $fact, string $inputType = 'boolean', array $options = [], array $i18n = []): self
     {
         return $this->node(new NodeDefinition($key, QuestionNode::KEY, [
             'prompt' => $prompt,
             'fact' => $fact,
             'inputType' => $inputType,
             'options' => $options,
+            ...$i18n,
         ]));
     }
 
@@ -84,13 +86,17 @@ final class GuideBuilder
         return $this->node(new NodeDefinition($key, DecisionNode::KEY, $fact === null ? [] : ['fact' => $fact]));
     }
 
-    /** @param list<string> $warnings */
-    public function outcome(string $key, string $verdict, ?string $text = null, array $warnings = []): self
+    /**
+     * @param  list<string>  $warnings
+     * @param  array<string, mixed>  $i18n  e.g. `['verdict_i18n' => ['da' => '…']]`, merged into config
+     */
+    public function outcome(string $key, string $verdict, ?string $text = null, array $warnings = [], array $i18n = []): self
     {
         return $this->node(new NodeDefinition($key, OutcomeNode::KEY, [
             'verdict' => $verdict,
             'text' => $text,
             'warnings' => $warnings,
+            ...$i18n,
         ]));
     }
 

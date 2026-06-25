@@ -8,6 +8,7 @@ use ByJesper\DecisionSupport\Contracts\NodeType;
 use ByJesper\DecisionSupport\Definition\NodeDefinition;
 use ByJesper\DecisionSupport\Runtime\EvaluationContext;
 use ByJesper\DecisionSupport\Runtime\Interaction;
+use ByJesper\DecisionSupport\Runtime\LocaleResolver;
 use ByJesper\DecisionSupport\Runtime\NodeResult;
 use ByJesper\DecisionSupport\Support\PortSet;
 use ByJesper\DecisionSupport\Validation\ValidationResult;
@@ -83,7 +84,7 @@ final class QuestionNode implements NodeType
     public function evaluate(NodeDefinition $node, EvaluationContext $context): NodeResult
     {
         if (! $context->hasInput()) {
-            return NodeResult::suspend($this->interaction($node));
+            return NodeResult::suspend($this->interaction($node, $context));
         }
 
         $fact = $this->factName($node);
@@ -97,15 +98,51 @@ final class QuestionNode implements NodeType
         ]);
     }
 
-    private function interaction(NodeDefinition $node): Interaction
+    private function interaction(NodeDefinition $node, EvaluationContext $context): Interaction
     {
+        $resolver = $context->localeResolver();
+        $basePrompt = is_string($node->config('prompt')) ? $node->config('prompt') : $node->key;
+
         return new Interaction(
             nodeKey: $node->key,
             kind: 'question',
-            prompt: is_string($node->config('prompt')) ? $node->config('prompt') : $node->key,
+            prompt: $resolver->localizedString($this->promptI18n($node), $basePrompt),
             inputType: $this->inputType($node),
-            options: $this->options($node),
+            options: $this->localizedOptions($node, $resolver),
         );
+    }
+
+    /** @return array<string, mixed> */
+    private function promptI18n(NodeDefinition $node): array
+    {
+        $map = $node->config('prompt_i18n');
+
+        return is_array($map) ? $map : [];
+    }
+
+    /**
+     * Options with each label resolved through the locale chain (`label_i18n`).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function localizedOptions(NodeDefinition $node, LocaleResolver $resolver): array
+    {
+        $options = $node->config('options');
+        if (! is_array($options)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($options as $option) {
+            if (is_array($option) && isset($option['value']) && is_scalar($option['value'])) {
+                $value = (string) $option['value'];
+                $base = isset($option['label']) && is_scalar($option['label']) ? (string) $option['label'] : $value;
+                $i18n = isset($option['label_i18n']) && is_array($option['label_i18n']) ? $option['label_i18n'] : [];
+                $normalized[] = ['value' => $value, 'label' => $resolver->localizedString($i18n, $base)];
+            }
+        }
+
+        return $normalized;
     }
 
     private function coerce(string $type, mixed $input): mixed

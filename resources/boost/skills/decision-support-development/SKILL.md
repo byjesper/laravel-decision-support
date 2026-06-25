@@ -126,6 +126,22 @@ $state->path;                   // reached node keys, for Mermaid highlighting
 `RunState` is serializable (`$state->toArray()` / `RunState::fromArray()`), so
 store it in the session or a Livewire property across a suspension.
 
+### Multi-language content
+
+Content fields (`prompt`, `verdict`, `text`, `warnings`, option `label`s) keep
+their plain string as the default language and take an optional `*_i18n` sibling
+map keyed by locale (`prompt_i18n`, `verdict_i18n`, `text_i18n`, `warnings_i18n`,
+per-option `label_i18n`). The engine is framework-agnostic, so **pass** the locale
+to `start()` — never read `app()->getLocale()` in the engine:
+
+```php
+$state = $runner->start($definition, [], $locale, $fallbackLocale);
+// resolves *_i18n[$locale] ?? *_i18n[$fallbackLocale] ?? <base>; carried on RunState
+```
+
+No locale ⇒ base strings (backward compatible). `GuideBuilder::question()` /
+`->outcome()` take an `$i18n` array for tests.
+
 ## 4. Validate and publish a draft
 
 `PublishValidator` rejects structurally broken guides; `GuidePublisher` validates

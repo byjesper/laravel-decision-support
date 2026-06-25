@@ -54,17 +54,30 @@ final class OutcomeNode implements NodeType
     #[\Override]
     public function evaluate(NodeDefinition $node, EvaluationContext $context): NodeResult
     {
-        return NodeResult::terminate($this->outcome($node));
+        return NodeResult::terminate($this->outcome($node, $context));
     }
 
-    private function outcome(NodeDefinition $node): Outcome
+    private function outcome(NodeDefinition $node, EvaluationContext $context): Outcome
     {
+        $resolver = $context->localeResolver();
+
+        $baseVerdict = is_string($node->config('verdict')) ? $node->config('verdict') : $node->key;
+        $baseText = is_string($node->config('text')) ? $node->config('text') : null;
+
         return new Outcome(
             nodeKey: $node->key,
-            verdict: is_string($node->config('verdict')) ? $node->config('verdict') : $node->key,
-            text: is_string($node->config('text')) ? $node->config('text') : null,
-            warnings: $this->warnings($node),
+            verdict: $resolver->localizedString($this->i18n($node, 'verdict_i18n'), $baseVerdict),
+            text: $resolver->localizedNullableString($this->i18n($node, 'text_i18n'), $baseText),
+            warnings: $resolver->localizedList($this->i18n($node, 'warnings_i18n'), $this->warnings($node)),
         );
+    }
+
+    /** @return array<string, mixed> */
+    private function i18n(NodeDefinition $node, string $key): array
+    {
+        $map = $node->config($key);
+
+        return is_array($map) ? $map : [];
     }
 
     /** @return list<string> */
