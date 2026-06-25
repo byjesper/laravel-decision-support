@@ -286,7 +286,9 @@ $manager->registerProfile(new MyProfile());                         // implement
 A custom **node type** implements `ByJesper\DecisionSupport\Contracts\NodeType`
 and returns `NodeResult::advance()`, `::suspend()`, or `::terminate()` from
 `evaluate()` — that is all the engine needs to fold it into the same resumable
-loop as the built-ins.
+loop as the built-ins. Its `configSchema()` drives the Filament editor form; each
+field may include an optional `help` string the editor renders as hint text
+(the engine itself does not interpret the schema).
 
 ## Events (host seams)
 

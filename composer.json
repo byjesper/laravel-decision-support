@@ -39,8 +39,8 @@
         ],
         "test:type:check": "phpstan analyse --ansi --memory-limit=-1",
         "test:type:coverage": "php -d memory_limit=-1 vendor/bin/pest --type-coverage --min=100",
-        "test:unit": "pest --exclude-group=integration --compact",
-        "test:parallel": "pest --exclude-group=integration --parallel --processes=3",
+        "test:unit": "pest tests/Unit --exclude-group=integration --compact",
+        "test:parallel": "pest tests/Unit --exclude-group=integration --parallel --processes=3",
         "test:integration": "pest --group=integration -v",
         "test": [
             "@guidelines:check",

@@ -190,3 +190,5 @@ $mermaid = app(\ByJesper\DecisionSupport\Mermaid\MermaidRenderer::class)->render
   enforces this, including expression conditions (linted against the vocabulary).
 - Always provide a default (`always`) or `unknown` branch out of a decision so
   unresolved facts route somewhere — the runtime never throws.
+- In a custom node type's `configSchema()`, give each field a `help` string; the
+  Filament editor renders it as hint text (the engine does not interpret it).

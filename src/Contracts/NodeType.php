@@ -23,7 +23,9 @@ interface NodeType
 
     /**
      * Describes the node's config fields. Drives the Filament form in the
-     * companion package; the engine itself does not interpret it.
+     * companion package; the engine itself does not interpret it. Each field maps
+     * to a spec that may carry `type`, `required`, `values` (for `enum`), and an
+     * optional `help` string the editor renders as hint text.
      *
      * @return array<string, mixed>
      */

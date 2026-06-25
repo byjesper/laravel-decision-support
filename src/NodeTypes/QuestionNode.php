@@ -35,10 +35,10 @@ final class QuestionNode implements NodeType
     public function configSchema(): array
     {
         return [
-            'prompt' => ['type' => 'string', 'required' => true],
-            'fact' => ['type' => 'string', 'required' => true],
-            'inputType' => ['type' => 'enum', 'values' => self::INPUT_TYPES, 'required' => true],
-            'options' => ['type' => 'list', 'required' => false],
+            'prompt' => ['type' => 'string', 'required' => true, 'help' => 'The question shown to the person running the guide.'],
+            'fact' => ['type' => 'string', 'required' => true, 'help' => 'The fact name the answer is stored under, and that edge conditions reference.'],
+            'inputType' => ['type' => 'enum', 'values' => self::INPUT_TYPES, 'required' => true, 'help' => 'How the answer is collected. boolean routes true/false; select routes by chosen value; date/text/number route through a single "out" port.'],
+            'options' => ['type' => 'list', 'required' => false, 'help' => 'For a select question: the choices, one "value:label" per line.'],
         ];
     }
 
