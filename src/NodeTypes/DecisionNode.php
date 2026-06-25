@@ -31,7 +31,7 @@ final class DecisionNode implements NodeType
     public function configSchema(): array
     {
         return [
-            'fact' => ['type' => 'string', 'required' => false],
+            'fact' => ['type' => 'string', 'required' => false, 'help' => 'Optional fact this decision branches on. Leave blank to branch purely on the outgoing edge conditions.'],
         ];
     }
 

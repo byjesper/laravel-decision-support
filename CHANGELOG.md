@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Optional `help` text on each node type's `configSchema()` field, rendered as
+  hint text by the Filament editor. Additive — existing readers ignore it and the
+  engine does not interpret the schema.
 - `extra_attributes` — a nullable JSON column (cast to `array`) on both `guides`
   and `guide_versions` for arbitrary consumer metadata (e.g.
   `['permissions' => [...]]` for host-side gating). Added via a new additive

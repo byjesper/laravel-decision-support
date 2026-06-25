@@ -29,9 +29,9 @@ final class OutcomeNode implements NodeType
     public function configSchema(): array
     {
         return [
-            'verdict' => ['type' => 'string', 'required' => true],
-            'text' => ['type' => 'string', 'required' => false],
-            'warnings' => ['type' => 'list', 'required' => false],
+            'verdict' => ['type' => 'string', 'required' => true, 'help' => 'The short verdict shown when this outcome is reached, e.g. "Eligible". Reaching this node ends the run.'],
+            'text' => ['type' => 'string', 'required' => false, 'help' => 'Optional longer explanation shown beneath the verdict.'],
+            'warnings' => ['type' => 'list', 'required' => false, 'help' => 'Optional caveats shown with the verdict — one per line.'],
         ];
     }
 

@@ -33,7 +33,7 @@ final class FactNode implements NodeType
     public function configSchema(): array
     {
         return [
-            'fact' => ['type' => 'string', 'required' => true],
+            'fact' => ['type' => 'string', 'required' => true, 'help' => 'The fact to resolve from the host fact provider when the run reaches this node.'],
         ];
     }
 
