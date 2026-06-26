@@ -181,3 +181,62 @@ it('routes a select question through the chosen option port', function (): void 
 
     $this->assertReachesOutcome($runner->advance($guide, $state, 'blue'), 'Cool');
 });
+
+it('keeps a required free question suspended until a non-blank answer arrives', function (): void {
+    $guide = GuideBuilder::make('notes')
+        ->question('q1', 'Any notes?', 'notes', 'text', [], [], required: true)
+        ->outcome('done', 'Done')
+        ->edge('q1', 'done', 'out')
+        ->build();
+
+    $runner = $this->decisionRunner('notes', FakeFactProvider::make());
+
+    $state = $runner->start($guide);
+    $this->assertSuspendsForQuestion($state, 'q1');
+    expect($state->pendingInteraction?->required)->toBeTrue();
+
+    // Blank answers (empty or whitespace-only) cannot advance a mandatory question.
+    $this->assertSuspendsForQuestion($runner->advance($guide, $state, ''), 'q1');
+    $this->assertSuspendsForQuestion($runner->advance($guide, $state, '   '), 'q1');
+
+    // A real answer routes through to the outcome.
+    $this->assertReachesOutcome($runner->advance($guide, $state, 'looks good'), 'Done');
+});
+
+it('advances an optional free question on a blank answer (the default)', function (): void {
+    $guide = GuideBuilder::make('notes')
+        ->question('q1', 'Any notes?', 'notes', 'text')
+        ->outcome('done', 'Done')
+        ->edge('q1', 'done', 'out')
+        ->build();
+
+    $runner = $this->decisionRunner('notes', FakeFactProvider::make());
+    $state = $runner->start($guide);
+
+    expect($state->pendingInteraction?->required)->toBeFalse();
+    $this->assertReachesOutcome($runner->advance($guide, $state, ''), 'Done');
+});
+
+it('ignores the required flag for a boolean question', function (): void {
+    $guide = GuideBuilder::make('q')
+        ->question('q1', 'Employed?', 'employed', 'boolean', [], [], required: true)
+        ->outcome('yes', 'Yes')
+        ->outcome('no', 'No')
+        ->edge('q1', 'yes', 'true')
+        ->edge('q1', 'no', 'false')
+        ->build();
+
+    $runner = $this->decisionRunner('q', FakeFactProvider::make());
+    $state = $runner->start($guide);
+
+    // required is meaningless for boolean — the interaction reports false and a value still routes.
+    expect($state->pendingInteraction?->required)->toBeFalse();
+    $this->assertReachesOutcome($runner->advance($guide, $state, false), 'No');
+});
+
+it('round-trips the required flag through interaction serialization', function (): void {
+    $interaction = new Interaction('q1', 'question', 'Any notes?', 'text', required: true);
+
+    expect(Interaction::fromArray($interaction->toArray())->required)->toBeTrue()
+        ->and(Interaction::fromArray(['nodeKey' => 'q1'])->required)->toBeFalse();
+});

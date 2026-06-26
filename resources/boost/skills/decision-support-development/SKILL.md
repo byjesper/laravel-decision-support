@@ -100,6 +100,11 @@ $definition = GuideBuilder::make('employment-eligibility')
 Node/edge rules:
 - `question` ports: boolean → `true`/`false`; select → one port per option value;
   date/text/number → a single `out` port.
+- A free (text/date/number) `question` can set `required` (config flag, or
+  `GuideBuilder::question(..., required: true)`): the interpreter re-suspends on a
+  null/whitespace answer instead of advancing, and the flag is exposed on
+  `$state->pendingInteraction->required` for the host UI. Ignored for
+  boolean/select.
 - `fact` and `decision` emit a single `out` port; `decision` routing is done by
   the **edge conditions** (first match wins; an `always` edge is the default/else,
   an `unknown('fact')` edge matches when a fact is unresolved).

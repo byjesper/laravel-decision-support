@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-26
+
+### Added
+
+- **Mandatory questions.** A question node accepts a `required` config flag; when
+  set, a free (text/date/number) question must be answered with a non-blank value
+  before the run can advance — the interpreter re-suspends on a null or
+  whitespace-only answer instead of routing an empty value through `out`. The
+  flag is surfaced on `Interaction` (new `required` property, serialized on the
+  run state) so any host UI can disable its submit control accordingly. Ignored
+  for boolean/select, which are always answered by the choice itself.
+  `GuideBuilder::question()` gains a `$required` parameter. Backward compatible
+  (defaults to `false`).
+
 ## [0.3.0] - 2026-06-25
 
 ### Added

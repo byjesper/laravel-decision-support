@@ -40,6 +40,7 @@ final class QuestionNode implements NodeType
             'fact' => ['type' => 'string', 'required' => true, 'help' => 'The fact name the answer is stored under, and that edge conditions reference.'],
             'inputType' => ['type' => 'enum', 'values' => self::INPUT_TYPES, 'required' => true, 'help' => 'How the answer is collected. boolean routes true/false; select routes by chosen value; date/text/number route through a single "out" port.'],
             'options' => ['type' => 'list', 'required' => false, 'help' => 'For a select question: the choices, one "value:label" per line.'],
+            'required' => ['type' => 'bool', 'required' => false, 'help' => 'When true, a free (text/date/number) answer must be supplied before the run can advance. Ignored for boolean/select, which are always answered by the choice.'],
         ];
     }
 
@@ -83,7 +84,10 @@ final class QuestionNode implements NodeType
     #[\Override]
     public function evaluate(NodeDefinition $node, EvaluationContext $context): NodeResult
     {
-        if (! $context->hasInput()) {
+        // Suspend the first time through (no input yet) and, for a required free
+        // question, again whenever the supplied answer is blank — so a mandatory
+        // field cannot be skipped past with an empty value, whatever the host UI.
+        if (! $context->hasInput() || $this->isBlankRequiredAnswer($node, $context)) {
             return NodeResult::suspend($this->interaction($node, $context));
         }
 
@@ -109,7 +113,34 @@ final class QuestionNode implements NodeType
             prompt: $resolver->localizedString($this->promptI18n($node), $basePrompt),
             inputType: $this->inputType($node),
             options: $this->localizedOptions($node, $resolver),
+            required: $this->isRequired($node),
         );
+    }
+
+    /**
+     * Whether the question is marked mandatory. Only a free input (text/date/
+     * number) can be left blank, so the flag is meaningful only there; boolean
+     * and select always carry an answer via the chosen port.
+     */
+    private function isRequired(NodeDefinition $node): bool
+    {
+        return $node->config('required') === true
+            && ! in_array($this->inputType($node), ['boolean', 'select'], true);
+    }
+
+    /**
+     * A required free question whose answer is null or whitespace-only — the run
+     * must stay suspended rather than route an empty value through `out`.
+     */
+    private function isBlankRequiredAnswer(NodeDefinition $node, EvaluationContext $context): bool
+    {
+        if (! $this->isRequired($node)) {
+            return false;
+        }
+
+        $input = $context->input;
+
+        return $input === null || (is_string($input) && trim($input) === '');
     }
 
     /** @return array<string, mixed> */
