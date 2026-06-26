@@ -64,14 +64,16 @@ final class GuideBuilder
      * @param  'boolean'|'select'|'date'|'text'|'number'  $inputType
      * @param  list<array{value: string, label: string, label_i18n?: array<string, string>}>  $options
      * @param  array<string, mixed>  $i18n  e.g. `['prompt_i18n' => ['da' => '…']]`, merged into config
+     * @param  bool  $required  mandate a non-blank answer for a free (text/date/number) question
      */
-    public function question(string $key, string $prompt, string $fact, string $inputType = 'boolean', array $options = [], array $i18n = []): self
+    public function question(string $key, string $prompt, string $fact, string $inputType = 'boolean', array $options = [], array $i18n = [], bool $required = false): self
     {
         return $this->node(new NodeDefinition($key, QuestionNode::KEY, [
             'prompt' => $prompt,
             'fact' => $fact,
             'inputType' => $inputType,
             'options' => $options,
+            'required' => $required,
             ...$i18n,
         ]));
     }

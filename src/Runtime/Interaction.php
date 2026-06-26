@@ -16,6 +16,9 @@ final readonly class Interaction
      * @param  'boolean'|'select'|'date'|'text'|'number'  $inputType
      * @param  list<array{value: string, label: string}>  $options
      * @param  array<string, mixed>  $meta
+     * @param  bool  $required  Whether an answer must be supplied. Only meaningful
+     *                          for free inputs (text/date/number) — boolean and
+     *                          select are always answered by the choice itself.
      */
     public function __construct(
         public string $nodeKey,
@@ -24,6 +27,7 @@ final readonly class Interaction
         public string $inputType,
         public array $options = [],
         public array $meta = [],
+        public bool $required = false,
     ) {}
 
     /** @return array<string, mixed> */
@@ -36,6 +40,7 @@ final readonly class Interaction
             'inputType' => $this->inputType,
             'options' => $this->options,
             'meta' => $this->meta,
+            'required' => $this->required,
         ];
     }
 
@@ -58,6 +63,7 @@ final readonly class Interaction
             inputType: $inputType,
             options: $options,
             meta: $meta,
+            required: (bool) ($data['required'] ?? false),
         );
     }
 }

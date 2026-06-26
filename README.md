@@ -159,6 +159,28 @@ $state = RunState::fromArray(session('run'));
 $state = $runner->advance($definition, $state, $userInput);
 ```
 
+### Required (mandatory) questions
+
+A free-input question (`text`, `date`, `number`) can be marked **required** so a
+run cannot advance past it on a blank answer:
+
+```php
+GuideBuilder::make('intake')
+    ->question('q_start', 'Intended start date', 'start_date', 'date', [], [], required: true);
+```
+
+The flag rides on the suspension, so a host UI can react (e.g. show a validation
+message):
+
+```php
+$state->pendingInteraction?->required;            // true
+```
+
+When a required question is answered with a `null`/whitespace value the
+interpreter re-suspends on the same node instead of routing an empty value
+onward. It is ignored for `boolean`/`select`, which are always answered by the
+choice itself.
+
 ### Multi-language content
 
 Guide content — an outcome's `verdict`/`text`/`warnings`, a question's `prompt`,
