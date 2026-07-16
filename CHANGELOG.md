@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-07-16
+
+### Documentation
+
+- Brought the bundled Boost skill (`resources/boost/skills/decision-support-development`)
+  up to date with the 0.5.0 behaviour it shipped alongside: freeform cycles and
+  the `SupportsCycles` / re-ask / `GuideProfileRegistry` model (#22), date-aware
+  ordering operators (#18), and boolean questions re-suspending on unparseable
+  input (#19). No code change.
+- Package-specifics guideline now requires re-checking every bundled `SKILL.md`
+  against a version's changes before each release, since skills ship in the
+  tarball and tags are immutable.
+
 ## [0.5.0] - 2026-07-16
 
 ### Added
@@ -179,7 +192,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Laravel Boost `decision-support-development` skill (auto-discovered on
   `boost:install` / `boost:update --discover`).
 
-[Unreleased]: https://github.com/byjesper/laravel-decision-support/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/byjesper/laravel-decision-support/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/byjesper/laravel-decision-support/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/byjesper/laravel-decision-support/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/byjesper/laravel-decision-support/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/byjesper/laravel-decision-support/compare/v0.2.0...v0.3.0

@@ -28,6 +28,15 @@ reaches an `unknown` outcome.
   (`$version->toDefinition()`).
 - **Profiles.** A guide declares `phased` (questions → facts → decisions →
   outcomes, no backward edges) or `freeform`; the profile is enforced at publish.
+  **Freeform guides may contain cycles** (loop back and re-ask a question): the
+  shipped `FreeformProfile` implements the `SupportsCycles` marker interface, so
+  the publish-time acyclic check is skipped and, at runtime, a `max_steps` budget
+  — not the revisit guard — is the sole termination rail. Re-entering an
+  already-answered question **re-asks** it (the run re-suspends and the new answer
+  overwrites the stored one). Acyclic profiles are unchanged: the revisit guard,
+  bounded by node count, remains their rail. `GuideRunner` resolves the profile
+  through an optional, nullable `GuideProfileRegistry`; a null registry or an
+  unknown/plain profile behaves exactly as an acyclic guide.
 - **Node types are pluggable.** The four built-ins are `question`, `fact`,
   `decision`, `outcome`; register custom ones on `DecisionSupportManager` rather
   than special-casing host code.
@@ -105,9 +114,16 @@ Node/edge rules:
   null/whitespace answer instead of advancing, and the flag is exposed on
   `$state->pendingInteraction->required` for the host UI. Ignored for
   boolean/select.
+- A **boolean** question re-suspends on *unparseable* input (`"maybe"`, `"no
+  thanks"`, …): it re-asks instead of coercing junk to `true`. Recognized answers
+  (`yes`/`no`/`1`/`0`/`true`/`false`) route as before.
 - `fact` and `decision` emit a single `out` port; `decision` routing is done by
   the **edge conditions** (first match wins; an `always` edge is the default/else,
   an `unknown('fact')` edge matches when a fact is unresolved).
+- Ordering operators (`>`, `>=`, `<`, `<=`) compare **numbers and ISO-8601
+  date/datetime strings**: numerics and numeric strings coerce to float, ISO
+  dates (`Y-m-d`, optionally with a time) to a timestamp. Arbitrary non-ISO
+  strings stay non-comparable (the condition is `false`) — deliberately narrow.
 - `outcome` is terminal.
 
 ## 3. Run it (headless or in a UI)
