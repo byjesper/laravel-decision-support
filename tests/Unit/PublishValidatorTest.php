@@ -3,16 +3,20 @@
 declare(strict_types=1);
 
 use ByJesper\DecisionSupport\Conditions\Condition;
+use ByJesper\DecisionSupport\Contracts\GuideProfile;
+use ByJesper\DecisionSupport\Definition\GuideDefinition;
 use ByJesper\DecisionSupport\Enums\FactType;
 use ByJesper\DecisionSupport\Enums\Operator;
 use ByJesper\DecisionSupport\NodeTypes\DecisionNode;
 use ByJesper\DecisionSupport\NodeTypes\FactNode;
 use ByJesper\DecisionSupport\NodeTypes\OutcomeNode;
 use ByJesper\DecisionSupport\NodeTypes\QuestionNode;
+use ByJesper\DecisionSupport\Profiles\FreeformProfile;
 use ByJesper\DecisionSupport\Registry\NodeTypeRegistry;
 use ByJesper\DecisionSupport\Testing\FakeFactProvider;
 use ByJesper\DecisionSupport\Testing\GuideBuilder;
 use ByJesper\DecisionSupport\Validation\PublishValidator;
+use ByJesper\DecisionSupport\Validation\ValidationResult;
 
 function makeValidator(): PublishValidator
 {
@@ -106,6 +110,67 @@ it('rejects a cycle', function (): void {
         ->build();
 
     $result = makeValidator()->validate($guide, FakeFactProvider::make()->vocabulary());
+
+    expect($result->hasCode('graph.cycle'))->toBeTrue();
+});
+
+it('accepts a cycle for a cycle-supporting profile', function (): void {
+    // q1 (true) -> q2; q2 (false) -> q1: a legal loop for freeform.
+    $guide = GuideBuilder::make('loop')
+        ->question('q1', 'Continue?', 'again', 'boolean')
+        ->question('q2', 'Done?', 'done', 'boolean')
+        ->outcome('ok', 'Ok')
+        ->outcome('stop', 'Stop')
+        ->edge('q1', 'q2', 'true')
+        ->edge('q1', 'stop', 'false')
+        ->edge('q2', 'ok', 'true')
+        ->edge('q2', 'q1', 'false')
+        ->build();
+
+    $vocab = FakeFactProvider::make()
+        ->declare('again', FactType::Boolean)
+        ->declare('done', FactType::Boolean)
+        ->vocabulary();
+
+    $result = makeValidator()->validate($guide, $vocab, new FreeformProfile);
+
+    expect($result->passes())->toBeTrue()
+        ->and($result->hasCode('graph.cycle'))->toBeFalse();
+});
+
+it('still rejects a cycle for a profile that does not support cycles', function (): void {
+    $guide = GuideBuilder::make('loop')
+        ->question('q1', 'Continue?', 'again', 'boolean')
+        ->question('q2', 'Done?', 'done', 'boolean')
+        ->outcome('ok', 'Ok')
+        ->outcome('stop', 'Stop')
+        ->edge('q1', 'q2', 'true')
+        ->edge('q1', 'stop', 'false')
+        ->edge('q2', 'ok', 'true')
+        ->edge('q2', 'q1', 'false')
+        ->build();
+
+    $vocab = FakeFactProvider::make()
+        ->declare('again', FactType::Boolean)
+        ->declare('done', FactType::Boolean)
+        ->vocabulary();
+
+    $acyclicProfile = new class implements GuideProfile
+    {
+        #[Override]
+        public function key(): string
+        {
+            return 'strict';
+        }
+
+        #[Override]
+        public function validate(GuideDefinition $definition): ValidationResult
+        {
+            return ValidationResult::valid();
+        }
+    };
+
+    $result = makeValidator()->validate($guide, $vocab, $acyclicProfile);
 
     expect($result->hasCode('graph.cycle'))->toBeTrue();
 });

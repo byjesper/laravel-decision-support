@@ -8,10 +8,12 @@ use ByJesper\DecisionSupport\Conditions\ConditionEvaluatorChain;
 use ByJesper\DecisionSupport\Conditions\ExpressionConditionEvaluator;
 use ByJesper\DecisionSupport\Conditions\StructuredConditionEvaluator;
 use ByJesper\DecisionSupport\Contracts\ConditionEvaluator;
+use ByJesper\DecisionSupport\Models\GuideVersion;
 use ByJesper\DecisionSupport\NodeTypes\DecisionNode;
 use ByJesper\DecisionSupport\NodeTypes\FactNode;
 use ByJesper\DecisionSupport\NodeTypes\OutcomeNode;
 use ByJesper\DecisionSupport\NodeTypes\QuestionNode;
+use ByJesper\DecisionSupport\Observers\GuideVersionObserver;
 use ByJesper\DecisionSupport\Profiles\FreeformProfile;
 use ByJesper\DecisionSupport\Profiles\PhasedProfile;
 use ByJesper\DecisionSupport\Publishing\GuidePublisher;
@@ -68,6 +70,7 @@ final class DecisionSupportServiceProvider extends ServiceProvider
                 $app->make(ConditionEvaluator::class),
                 $app->make(Dispatcher::class),
                 (int) $app->make('config')->get('decision-support.max_steps', 200),
+                $app->make(GuideProfileRegistry::class),
             ),
         );
 
@@ -86,6 +89,11 @@ final class DecisionSupportServiceProvider extends ServiceProvider
     {
         $this->registerBuiltins();
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // Fire GuideDrafted for any draft version creation, whatever the writer.
+        // Registered by class name so the observer is resolved from the container
+        // per event — it picks up the current dispatcher (e.g. under Event::fake).
+        GuideVersion::observe(GuideVersionObserver::class);
 
         if ($this->app->runningInConsole()) {
             $this->publishes([

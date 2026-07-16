@@ -84,10 +84,13 @@ final class QuestionNode implements NodeType
     #[\Override]
     public function evaluate(NodeDefinition $node, EvaluationContext $context): NodeResult
     {
-        // Suspend the first time through (no input yet) and, for a required free
-        // question, again whenever the supplied answer is blank — so a mandatory
-        // field cannot be skipped past with an empty value, whatever the host UI.
-        if (! $context->hasInput() || $this->isBlankRequiredAnswer($node, $context)) {
+        // Suspend the first time through (no input yet); for a required free
+        // question, again whenever the supplied answer is blank; and for a
+        // boolean question, again whenever the answer cannot be parsed as a
+        // boolean — junk means "ask again", never "route through true".
+        if (! $context->hasInput()
+            || $this->isBlankRequiredAnswer($node, $context)
+            || $this->isUnparseableBoolean($node, $context)) {
             return NodeResult::suspend($this->interaction($node, $context));
         }
 
@@ -143,6 +146,20 @@ final class QuestionNode implements NodeType
         return $input === null || (is_string($input) && trim($input) === '');
     }
 
+    /**
+     * A boolean question whose supplied answer does not parse as a boolean —
+     * the run must re-suspend and re-ask rather than route unrecognized input
+     * (`"maybe"`, `"no thanks"`, `"0.0"`) through the `true` port.
+     */
+    private function isUnparseableBoolean(NodeDefinition $node, EvaluationContext $context): bool
+    {
+        if ($this->inputType($node) !== 'boolean' || ! $context->hasInput()) {
+            return false;
+        }
+
+        return $this->coerce('boolean', $context->input) === null;
+    }
+
     /** @return array<string, mixed> */
     private function promptI18n(NodeDefinition $node): array
     {
@@ -179,7 +196,9 @@ final class QuestionNode implements NodeType
     private function coerce(string $type, mixed $input): mixed
     {
         return match ($type) {
-            'boolean' => filter_var($input, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? (bool) $input,
+            // No fallback cast: unparseable input stays null so the caller can
+            // treat it as unanswered and re-suspend (see isUnparseableBoolean).
+            'boolean' => filter_var($input, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE),
             'number' => is_numeric($input) ? $input + 0 : $input,
             default => is_scalar($input) ? (string) $input : $input,
         };

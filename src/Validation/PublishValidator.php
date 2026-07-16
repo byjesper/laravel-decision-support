@@ -6,6 +6,7 @@ namespace ByJesper\DecisionSupport\Validation;
 
 use ByJesper\DecisionSupport\Conditions\Condition;
 use ByJesper\DecisionSupport\Contracts\GuideProfile;
+use ByJesper\DecisionSupport\Contracts\SupportsCycles;
 use ByJesper\DecisionSupport\Definition\EdgeDefinition;
 use ByJesper\DecisionSupport\Definition\GuideDefinition;
 use ByJesper\DecisionSupport\Enums\ConditionType;
@@ -42,7 +43,14 @@ final readonly class PublishValidator
         $result = $result->merge($this->validatePorts($definition));
         $result = $result->merge($this->validateLeaves($definition));
         $result = $result->merge($this->validateReachability($definition));
-        $result = $result->merge($this->validateAcyclic($definition));
+
+        // Cycle-supporting profiles (e.g. freeform) are allowed to loop, so the
+        // acyclic check is skipped for them; every other profile keeps requiring
+        // a loop-free graph so each path reaches an outcome.
+        if (! $profile instanceof SupportsCycles) {
+            $result = $result->merge($this->validateAcyclic($definition));
+        }
+
         $result = $result->merge($this->validateFactReferences($definition, $vocabulary));
 
         if ($profile !== null) {

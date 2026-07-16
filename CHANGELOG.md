@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Free-form guides may now contain cycles** (e.g. loop back and re-ask a
+  question). A profile opts in by implementing the new marker interface
+  `ByJesper\DecisionSupport\Contracts\SupportsCycles`; the shipped `FreeformProfile`
+  now does. For such profiles the publish-time acyclic check is skipped and, at
+  runtime, the revisit guard is replaced by the step budget as the sole
+  termination rail. Exactly one rail is active per profile: acyclic profiles use
+  the revisit guard (steps bounded by node count), cycle-supporting profiles use
+  `max_steps`. `GuideRunner` gains an optional, nullable `GuideProfileRegistry`
+  constructor argument; a null registry or an unknown/plain profile behaves
+  exactly as before (acyclic). Re-entering an already-answered question re-asks
+  it — the run re-suspends and the new answer overwrites the stored one. (#22)
+- **Ordering operators (`>`, `>=`, `<`, `<=`) can compare dates.** Operands are
+  normalized before comparison: numerics and numeric strings map to floats, and
+  unambiguous ISO-8601 date/datetime strings (`Y-m-d`, optionally with a time
+  component) map to a timestamp. Arbitrary non-ISO strings remain non-comparable
+  (the comparison stays `false`), so this is deliberately narrow. (#18)
+- **`GuideDrafted` is now dispatched** — from a `GuideVersion` `created` model
+  observer, so it fires for any writer (the Filament editor, a host's custom
+  editor, seeders, artisan commands) whenever a *draft* version is created. The
+  README events table now states the dispatch mechanism per event. (#21)
+- Additive migration adding an index on `guides.active_version_id` (resolved on
+  effectively every guide load). No foreign key — it would create a circular
+  reference with `guide_versions.guide_id`, and SQLite cannot `ALTER`-add one. (#15)
+
+### Changed
+
+- **Equality and membership now share one loose comparison.** `=`, `!=`, `in`,
+  and `not_in` all route a fact the same way; previously `in`/`not_in` were
+  strict while `=`/`!=` were loose, so `"5" = 5` matched but `"5" in [5]` did not.
+  Booleans no longer coerce through raw string casting: a bool matches only
+  another bool or its canonical string forms (`"true"/"1"`, `"false"/"0"`). (#17)
+- Internal performance: `GuideDefinition` indexes edges by origin (and
+  destination) node once in the constructor, so `edgesFrom()`/`edgesTo()` are
+  O(1) lookups instead of O(E) scans. Per-node edge order is preserved
+  (`selectTarget()` is first-matching-condition-wins). (#20)
+
+### Fixed
+
+- **Unparseable boolean answers no longer route through `true`.** A boolean
+  question fed unrecognized input (`"maybe"`, `"no thanks"`, …) now re-suspends
+  and re-asks, reusing the 0.4.0 required-answer machinery, instead of casting
+  the junk to `true`. Recognized answers (`"yes"/"no"/"1"/"0"/true/false`) route
+  as before. (#19)
+- Removed a scaffolding-leftover integration test that only asserted the suite
+  wires up. (#16)
+
+### Behaviour changes to note when upgrading
+
+- Routing may change for guides that (inadvertently) depended on strict `in`/
+  `not_in` failing across types, or on the old bool coercion where `false = ""`
+  and `true = "1"` both matched (#17).
+- Date-ordering conditions that always fell through to the default branch will
+  start routing meaningfully (#18).
+- A boolean question that previously mis-routed junk input to `true` now
+  re-suspends (#19).
+- Cyclic free-form guides go from rejected-at-publish to publishable; a host test
+  asserting a cyclic freeform guide fails validation must be updated. Separately,
+  acyclic guides with a path deeper than `max_steps` nodes now complete instead of
+  being falsely terminated `unknown` at the budget (#22).
+- Hosts creating draft versions (including in seeders/tests with `Event::fake`)
+  now receive `GuideDrafted` (#21).
+
 ## [0.4.0] - 2026-06-26
 
 ### Added
