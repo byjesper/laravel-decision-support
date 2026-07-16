@@ -70,7 +70,10 @@ final class QuestionNode implements NodeType
             $result = $result->merge(ValidationResult::error('question.fact_required', 'Question node requires a fact name to store the answer.', $node->key));
         }
 
-        if (! in_array($this->inputType($node), self::INPUT_TYPES, true)) {
+        // Validate the *raw* configured input type: a missing value is fine (it
+        // defaults to `text`), but an explicitly-set invalid one is an error.
+        $inputType = $node->config('inputType');
+        if ($inputType !== null && (! is_string($inputType) || ! in_array($inputType, self::INPUT_TYPES, true))) {
             $result = $result->merge(ValidationResult::error('question.input_type_invalid', 'Question node has an invalid input type.', $node->key));
         }
 

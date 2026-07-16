@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as before. (#19)
 - Removed a scaffolding-leftover integration test that only asserted the suite
   wires up. (#16)
+- A question node's `inputType` is now validated against the *raw* configured
+  value at publish, so an explicitly-invalid type is rejected instead of being
+  silently normalized to `text`; a missing value still defaults to `text`.
 
 ### Behaviour changes to note when upgrading
 
