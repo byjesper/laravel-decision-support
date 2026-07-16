@@ -4,12 +4,23 @@ declare(strict_types=1);
 
 use ByJesper\DecisionSupport\Conditions\Condition;
 use ByJesper\DecisionSupport\Enums\Operator;
+use ByJesper\DecisionSupport\Profiles\FreeformProfile;
+use ByJesper\DecisionSupport\Registry\GuideProfileRegistry;
 use ByJesper\DecisionSupport\Runtime\Interaction;
 use ByJesper\DecisionSupport\Testing\FakeFactProvider;
 use ByJesper\DecisionSupport\Testing\GuideBuilder;
 use ByJesper\DecisionSupport\Testing\InteractsWithGuides;
 
 uses(InteractsWithGuides::class);
+
+/** A registry in which `freeform` supports cycles — makes a runner profile-aware. */
+function cyclicProfiles(): GuideProfileRegistry
+{
+    $profiles = new GuideProfileRegistry;
+    $profiles->register(new FreeformProfile);
+
+    return $profiles;
+}
 
 it('suspends for a question and terminates on the matching boolean port', function (): void {
     $guide = GuideBuilder::make('eligibility')
@@ -27,6 +38,54 @@ it('suspends for a question and terminates on the matching boolean port', functi
 
     $this->assertReachesOutcome($runner->advance($guide, $state, true), 'Eligible');
     $this->assertReachesOutcome($runner->advance($guide, $state, false), 'Not eligible');
+});
+
+it('re-suspends a boolean question when the answer is unparseable', function (): void {
+    $guide = GuideBuilder::make('eligibility')
+        ->question('q1', 'Are you employed?', 'employed', 'boolean')
+        ->outcome('yes', 'Eligible')
+        ->outcome('no', 'Not eligible')
+        ->edge('q1', 'yes', 'true')
+        ->edge('q1', 'no', 'false')
+        ->build();
+
+    $runner = $this->decisionRunner('eligibility', FakeFactProvider::make());
+
+    $state = $runner->start($guide);
+    $this->assertSuspendsForQuestion($state, 'q1');
+
+    // "maybe" is not a boolean → re-ask; it must never route through `true`.
+    $state = $runner->advance($guide, $state, 'maybe');
+    $this->assertSuspendsForQuestion($state, 'q1');
+
+    // A recognised answer then routes normally.
+    $this->assertReachesOutcome($runner->advance($guide, $state, 'no'), 'Not eligible');
+});
+
+it('routes recognised boolean answers through the right port', function (): void {
+    $guide = GuideBuilder::make('eligibility')
+        ->question('q1', 'Are you employed?', 'employed', 'boolean')
+        ->outcome('yes', 'Eligible')
+        ->outcome('no', 'Not eligible')
+        ->edge('q1', 'yes', 'true')
+        ->edge('q1', 'no', 'false')
+        ->build();
+
+    $runner = $this->decisionRunner('eligibility', FakeFactProvider::make());
+
+    $cases = [
+        ['yes', 'Eligible'],
+        ['1', 'Eligible'],
+        [true, 'Eligible'],
+        ['no', 'Not eligible'],
+        ['0', 'Not eligible'],
+        [false, 'Not eligible'],
+    ];
+
+    foreach ($cases as [$answer, $verdict]) {
+        $state = $runner->start($guide);
+        $this->assertReachesOutcome($runner->advance($guide, $state, $answer), $verdict);
+    }
 });
 
 it('resolves a fact and routes a decision without suspending', function (): void {
@@ -87,7 +146,7 @@ it('safely terminates with an unknown outcome when no edge matches', function ()
     $this->assertReachesUnknown($runner->start($guide));
 });
 
-it('guards against cycles', function (): void {
+it('guards against cycles for acyclic profiles (null/unknown registry)', function (): void {
     $guide = GuideBuilder::make('loop')
         ->decision('a')
         ->decision('b')
@@ -96,12 +155,15 @@ it('guards against cycles', function (): void {
         ->edge('b', 'a')
         ->build();
 
+    // No profile registry ⇒ acyclic behaviour: the revisit guard fires.
     $runner = $this->decisionRunner('loop', FakeFactProvider::make());
 
     $this->assertReachesUnknown($runner->start($guide));
 });
 
-it('enforces the step budget', function (): void {
+it('does not enforce a step budget for acyclic profiles (rail C off)', function (): void {
+    // A loop-free chain longer than max_steps must complete, not be killed:
+    // the revisit guard already bounds an acyclic run by node count.
     $guide = GuideBuilder::make('chain')
         ->decision('a')
         ->decision('b')
@@ -116,7 +178,53 @@ it('enforces the step budget', function (): void {
 
     $runner = $this->decisionRunner('chain', FakeFactProvider::make(), maxSteps: 2);
 
+    $this->assertReachesOutcome($runner->start($guide), 'End');
+});
+
+it('bounds a cyclic profile run with the step budget (rail C on)', function (): void {
+    // freeform supports cycles ⇒ the revisit guard is off; a fact/decision-only
+    // loop spins deterministically until the step budget terminates it unknown.
+    $guide = GuideBuilder::make('loop')
+        ->decision('a')
+        ->decision('b')
+        ->outcome('end', 'End')
+        ->edge('a', 'b')
+        ->edge('b', 'a')
+        ->build();
+
+    $runner = $this->decisionRunner('loop', FakeFactProvider::make(), maxSteps: 5, profiles: cyclicProfiles());
+
     $this->assertReachesUnknown($runner->start($guide));
+});
+
+it('re-asks a question when a cyclic guide loops back to it', function (): void {
+    // q1 (true) -> q2; q2 (true) -> ok; q2 (false) -> loops back to q1, re-asking
+    // it. Answering false the second lap routes q1 -> stop.
+    $guide = GuideBuilder::make('loop-question')
+        ->question('q1', 'Continue?', 'again', 'boolean')
+        ->question('q2', 'Done?', 'done', 'boolean')
+        ->outcome('ok', 'Ok')
+        ->outcome('stop', 'Stop')
+        ->edge('q1', 'q2', 'true')
+        ->edge('q1', 'stop', 'false')
+        ->edge('q2', 'ok', 'true')
+        ->edge('q2', 'q1', 'false')
+        ->build();
+
+    $runner = $this->decisionRunner('loop-question', FakeFactProvider::make(), profiles: cyclicProfiles());
+
+    $state = $runner->start($guide);
+    $this->assertSuspendsForQuestion($state, 'q1');
+
+    // Lap 1: q1 = true -> q2, q2 = false -> back to q1 (re-asked).
+    $state = $runner->advance($guide, $state, true);
+    $this->assertSuspendsForQuestion($state, 'q2');
+
+    $state = $runner->advance($guide, $state, false);
+    $this->assertSuspendsForQuestion($state, 'q1');
+
+    // Lap 2: q1 = false -> stop.
+    $this->assertReachesOutcome($runner->advance($guide, $state, false), 'Stop');
 });
 
 it('resumes across a question in the middle of the tree', function (): void {

@@ -156,7 +156,9 @@ final class MermaidRenderer
             return [];
         }
 
-        $ids = array_map($this->id(...), $highlight->path);
+        // A cyclic run's path may revisit nodes; collapse duplicates so each
+        // reached node is styled once.
+        $ids = array_values(array_unique(array_map($this->id(...), $highlight->path)));
 
         return [
             'classDef reached fill:#dcfce7,stroke:#16a34a,stroke-width:2px;',

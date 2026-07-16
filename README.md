@@ -291,8 +291,8 @@ reach the runtime. It checks:
 
 - **Graph integrity** — a resolvable entry, no dangling edges, no orphan
   (unreachable) nodes, every declared port has an outgoing edge.
-- **Termination** — the graph is acyclic, and every leaf is an `outcome` (so
-  every path reaches a verdict).
+- **Termination** — the graph is acyclic (unless its profile permits cycles —
+  see below), and every leaf is an `outcome` (so every path reaches a verdict).
 - **Fact references** — every structured condition's fact is in the vocabulary;
   expression conditions are linted against it.
 - **Per-node config** — e.g. a question needs a prompt; an outcome needs a verdict.
@@ -301,16 +301,32 @@ reach the runtime. It checks:
 
 ## Safety rails
 
-The runtime **never throws on bad guide data**:
+The runtime **never throws on bad guide data**. Exactly one termination rail is
+active per profile:
 
-- A **missing fact** routes to a defined `unknown`/default branch.
-- A **cycle** (a node re-entered on the same path) terminates with an `unknown`
-  outcome.
-- A **step budget** (`config('decision-support.max_steps')`, default `200`) caps
-  runaway runs.
+- A **missing fact** routes to a defined `unknown`/default branch (always on).
+- For an **acyclic profile** (the default, and any headless run with no profile
+  registry): a **revisit guard** — a node re-entered on the same path terminates
+  with an `unknown` outcome. This bounds a run by node count, so a long but
+  loop-free guide is never falsely killed.
+- For a **cycle-supporting profile** (one implementing
+  `ByJesper\DecisionSupport\Contracts\SupportsCycles`, e.g. `freeform`): the
+  revisit guard is off (revisiting is the point), and a **step budget**
+  (`config('decision-support.max_steps')`, default `200`) is the sole rail
+  against a runaway loop. Tune `max_steps` to the deepest loop your cyclic guides
+  need — it caps the *total* transitions across the whole run, all laps included.
 
 An `unknown` outcome (`$state->outcome->unknown === true`) signals a rail fired,
 with the reason in its `text`/`warnings`.
+
+### Free-form (cyclic) guides
+
+A guide whose profile implements `SupportsCycles` may contain cycles — e.g. loop
+back and re-ask a question. The `freeform` profile ships with this. Re-entering
+an already-answered **question re-asks it** (the run re-suspends and the new
+answer overwrites the stored one); a cycle through only fact/decision nodes
+re-evaluates identical state each lap and will spin until the step budget, so a
+useful loop must pass through a question.
 
 ## Rendering a diagram
 
@@ -369,12 +385,12 @@ field may include an optional `help` string the editor renders as hint text
 The engine emits events instead of depending on your audit/authorization stack.
 Listen to these to wire side effects:
 
-| Event | When |
-| --- | --- |
-| `GuideRunStarted` | A run begins (carries the initial `RunState`). |
-| `GuidePublished` | A version is published. |
-| `GuideDrafted` | A draft version is created. |
-| `NodeChanged` | A node is edited. |
+| Event | When | Dispatched by |
+| --- | --- | --- |
+| `GuideRunStarted` | A run begins (carries the initial `RunState`). | the engine (`GuideRunner`) |
+| `GuidePublished` | A version is published. | the engine (`GuidePublisher`) |
+| `GuideDrafted` | A draft version is created. | the engine, via a `GuideVersion` model observer — fires for **any** writer (editor, seeder, artisan) |
+| `NodeChanged` | A node is edited. | editors (e.g. the Filament package) — core has no editing code path, so it cannot honestly fire this |
 
 ## Testing your guides
 

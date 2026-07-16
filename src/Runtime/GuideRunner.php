@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace ByJesper\DecisionSupport\Runtime;
 
 use ByJesper\DecisionSupport\Contracts\ConditionEvaluator;
+use ByJesper\DecisionSupport\Contracts\SupportsCycles;
 use ByJesper\DecisionSupport\Definition\EdgeDefinition;
 use ByJesper\DecisionSupport\Definition\GuideDefinition;
 use ByJesper\DecisionSupport\Enums\RunStatus;
 use ByJesper\DecisionSupport\Events\GuideRunStarted;
 use ByJesper\DecisionSupport\Registry\FactProviderRegistry;
+use ByJesper\DecisionSupport\Registry\GuideProfileRegistry;
 use ByJesper\DecisionSupport\Registry\NodeTypeRegistry;
 use Illuminate\Contracts\Events\Dispatcher;
 
@@ -19,11 +21,15 @@ use Illuminate\Contracts\Events\Dispatcher;
  * (Suspend) or finishes (Terminate). Both take an explicit
  * {@see GuideDefinition} so a run can be evaluated headless, without the DB.
  *
- * Safety rails — the runtime never throws on bad guide data:
- *  - a step budget caps total transitions,
- *  - a visited-set guards against cycles,
- *  - an unroutable transition (missing edge, unresolved fact with no default)
- *    terminates with an `unknown` outcome rather than an exception.
+ * Safety rails — the runtime never throws on bad guide data. Exactly one
+ * termination rail is active per profile:
+ *  - acyclic profiles (the default, and any null/unknown profile) use the
+ *    revisit guard: re-entering a node terminates the run. Steps are thereby
+ *    bounded by node count, so the step budget stays off.
+ *  - cycle-supporting profiles ({@see SupportsCycles}) legalise revisits, so
+ *    the revisit guard is off and the step budget caps total transitions.
+ * An unroutable transition (missing edge, unresolved fact with no default)
+ * always terminates with an `unknown` outcome rather than an exception.
  */
 final readonly class GuideRunner
 {
@@ -33,6 +39,7 @@ final readonly class GuideRunner
         private ConditionEvaluator $conditions,
         private ?Dispatcher $events = null,
         private int $maxSteps = 200,
+        private ?GuideProfileRegistry $profiles = null,
     ) {}
 
     /**
@@ -69,8 +76,13 @@ final readonly class GuideRunner
 
     private function run(GuideDefinition $definition, RunState $state, mixed $input): RunState
     {
+        $cyclic = $this->supportsCycles($definition);
+
         while (true) {
-            if ($state->steps > $this->maxSteps) {
+            // Rail C — step budget. The sole runtime guard once revisits are
+            // legal; for acyclic profiles the revisit guard already bounds steps
+            // by node count, so a long-but-loop-free path is never killed here.
+            if ($cyclic && $state->steps > $this->maxSteps) {
                 return $this->terminateUnknown($state, 'Step budget exceeded.');
             }
 
@@ -115,7 +127,12 @@ final readonly class GuideRunner
                         return $this->terminateUnknown($state, "No outgoing edge from '{$nodeKey}' via port '{$result->port}'.");
                     }
 
-                    if ($state->hasVisited($target)) {
+                    // Rail B — revisit guard. Exact, zero-false-positive cycle
+                    // rejection for acyclic profiles. Off for cyclic profiles,
+                    // where re-entering a node is the legalised behaviour (a
+                    // re-asked question simply re-suspends, its new answer
+                    // overwriting the stored one).
+                    if (! $cyclic && $state->hasVisited($target)) {
                         return $this->terminateUnknown($state, "Cycle detected re-entering '{$target}'.");
                     }
 
@@ -124,6 +141,17 @@ final readonly class GuideRunner
                     continue 2;
             }
         }
+    }
+
+    /**
+     * Whether the run's declared profile permits cycles. A null registry, an
+     * unknown profile key, or a profile that does not implement
+     * {@see SupportsCycles} all mean "acyclic" — the safe default that preserves
+     * the engine's original semantics for headless use.
+     */
+    private function supportsCycles(GuideDefinition $definition): bool
+    {
+        return $this->profiles?->get($definition->profile) instanceof SupportsCycles;
     }
 
     private function selectTarget(GuideDefinition $definition, RunState $state, string $nodeKey, string $port): ?string

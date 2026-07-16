@@ -13,6 +13,7 @@ use ByJesper\DecisionSupport\NodeTypes\FactNode;
 use ByJesper\DecisionSupport\NodeTypes\OutcomeNode;
 use ByJesper\DecisionSupport\NodeTypes\QuestionNode;
 use ByJesper\DecisionSupport\Registry\FactProviderRegistry;
+use ByJesper\DecisionSupport\Registry\GuideProfileRegistry;
 use ByJesper\DecisionSupport\Registry\NodeTypeRegistry;
 use ByJesper\DecisionSupport\Runtime\GuideRunner;
 use ByJesper\DecisionSupport\Runtime\RunState;
@@ -25,7 +26,14 @@ use PHPUnit\Framework\Assert;
  */
 trait InteractsWithGuides
 {
-    public function decisionRunner(string $guideKey, FactProvider $provider, int $maxSteps = 200): GuideRunner
+    /**
+     * Build a runner pre-wired with the four built-in node types and a provider.
+     * Pass a {@see GuideProfileRegistry} to make the runner profile-aware — a
+     * definition whose profile supports cycles then runs under the step budget
+     * instead of the revisit guard. Omit it (the default) for today's acyclic
+     * semantics.
+     */
+    public function decisionRunner(string $guideKey, FactProvider $provider, int $maxSteps = 200, ?GuideProfileRegistry $profiles = null): GuideRunner
     {
         $nodeTypes = new NodeTypeRegistry;
         $nodeTypes->register(new QuestionNode);
@@ -41,7 +49,7 @@ trait InteractsWithGuides
             new ExpressionConditionEvaluator,
         );
 
-        return new GuideRunner($nodeTypes, $providers, $conditions, null, $maxSteps);
+        return new GuideRunner($nodeTypes, $providers, $conditions, null, $maxSteps, $profiles);
     }
 
     public function assertReachesOutcome(RunState $state, string $verdict): RunState

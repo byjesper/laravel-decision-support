@@ -14,6 +14,12 @@ final readonly class GuideDefinition
     /** @var array<string, NodeDefinition> */
     public array $nodes;
 
+    /** @var array<string, list<EdgeDefinition>> */
+    private array $edgesByFrom;
+
+    /** @var array<string, list<EdgeDefinition>> */
+    private array $edgesByTo;
+
     /**
      * @param  list<NodeDefinition>  $nodes
      * @param  list<EdgeDefinition>  $edges
@@ -32,6 +38,18 @@ final readonly class GuideDefinition
         }
 
         $this->nodes = $keyed;
+
+        // Index edges by origin and destination once. Insertion order per node
+        // is preserved — selectTarget() is first-matching-condition-wins.
+        $byFrom = [];
+        $byTo = [];
+        foreach ($edges as $edge) {
+            $byFrom[$edge->from][] = $edge;
+            $byTo[$edge->to][] = $edge;
+        }
+
+        $this->edgesByFrom = $byFrom;
+        $this->edgesByTo = $byTo;
     }
 
     public function node(string $key): ?NodeDefinition
@@ -47,19 +65,13 @@ final readonly class GuideDefinition
     /** @return list<EdgeDefinition> */
     public function edgesFrom(string $nodeKey): array
     {
-        return array_values(array_filter(
-            $this->edges,
-            static fn (EdgeDefinition $edge): bool => $edge->from === $nodeKey,
-        ));
+        return $this->edgesByFrom[$nodeKey] ?? [];
     }
 
     /** @return list<EdgeDefinition> */
     public function edgesTo(string $nodeKey): array
     {
-        return array_values(array_filter(
-            $this->edges,
-            static fn (EdgeDefinition $edge): bool => $edge->to === $nodeKey,
-        ));
+        return $this->edgesByTo[$nodeKey] ?? [];
     }
 
     /** @return array<string, mixed> */
